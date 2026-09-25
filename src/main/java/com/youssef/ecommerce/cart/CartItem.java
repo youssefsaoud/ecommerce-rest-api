@@ -1,5 +1,6 @@
 package com.youssef.ecommerce.cart;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.youssef.ecommerce.product.Product;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -23,6 +24,7 @@ public class CartItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "cart_id")
     private Cart cart;
