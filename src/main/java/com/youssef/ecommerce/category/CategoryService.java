@@ -1,5 +1,6 @@
 package com.youssef.ecommerce.category;
 
+import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,7 +14,10 @@ public class CategoryService {
         this.categoryRepository = categoryRepository;
     }
 
-    public Category createCategory(Category category) {
+    public Category createCategory(CategoryRequest request) {
+        Category category = new Category();
+        category.setName(request.name());
+
         return categoryRepository.save(category);
     }
 
@@ -22,22 +26,23 @@ public class CategoryService {
     }
 
     public Category getCategoryById(Long id) {
-        return categoryRepository.findById(id).orElse(null);
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
     }
 
-    public Category updateCategory(Long id, Category category) {
-        Category existingCategory = categoryRepository.findById(id).orElse(null);
+    public Category updateCategory(Long id, CategoryRequest category) {
+        Category existingCategory = getCategoryById(id);
 
-        if (existingCategory == null) {
-            return null;
-        }
-
-        existingCategory.setName(category.getName());
+        existingCategory.setName(category.name());
 
         return categoryRepository.save(existingCategory);
     }
 
     public void deleteCategory(Long id) {
+        if (!categoryRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Category not found");
+        }
+
         categoryRepository.deleteById(id);
     }
 }

@@ -1,5 +1,7 @@
 package com.youssef.ecommerce.cart;
 
+import com.youssef.ecommerce.exception.InvalidCartOperationException;
+import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import com.youssef.ecommerce.product.Product;
 import com.youssef.ecommerce.product.ProductRepository;
 import com.youssef.ecommerce.user.User;
@@ -27,11 +29,8 @@ public class CartService {
 
     @Transactional
     public Cart getUserCart(Long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-
-        if (user == null) {
-            return null;
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Cart cart = cartRepository.findByUser(user).orElse(null);
 
@@ -47,11 +46,8 @@ public class CartService {
     @Transactional
     public Cart addProductToCart(Long userId, Long productId, Integer quantity) {
         Cart cart = getUserCart(userId);
-        Product product = productRepository.findById(productId).orElse(null);
-
-        if (cart == null || product == null || quantity == null || quantity <= 0) {
-            return null;
-        }
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         for (CartItem item : cart.getItems()) {
             if (item.getProduct().getId().equals(productId)) {
@@ -73,14 +69,11 @@ public class CartService {
     @Transactional
     public Cart updateCartItemQuantity(Long userId, Long cartItemId, Integer quantity) {
         Cart cart = getUserCart(userId);
-        CartItem cartItem = cartItemRepository.findById(cartItemId).orElse(null);
-
-        if (cart == null || cartItem == null || quantity == null || quantity <= 0) {
-            return null;
-        }
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {
-            return null;
+            throw new InvalidCartOperationException("Cart item does not belong to this user's cart");
         }
 
         cartItem.setQuantity(quantity);
@@ -92,14 +85,11 @@ public class CartService {
     @Transactional
     public Cart removeItemFromCart(Long userId, Long cartItemId) {
         Cart cart = getUserCart(userId);
-        CartItem cartItem = cartItemRepository.findById(cartItemId).orElse(null);
-
-        if (cart == null || cartItem == null) {
-            return null;
-        }
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart item not found"));
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {
-            return null;
+            throw new InvalidCartOperationException("Cart item does not belong to this user's cart");
         }
 
         cart.getItems().remove(cartItem);
@@ -110,10 +100,6 @@ public class CartService {
     @Transactional
     public Cart clearCart(Long userId) {
         Cart cart = getUserCart(userId);
-
-        if (cart == null) {
-            return null;
-        }
 
         cart.getItems().clear();
 

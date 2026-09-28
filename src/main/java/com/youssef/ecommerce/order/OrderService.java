@@ -3,6 +3,9 @@ package com.youssef.ecommerce.order;
 import com.youssef.ecommerce.cart.Cart;
 import com.youssef.ecommerce.cart.CartItem;
 import com.youssef.ecommerce.cart.CartRepository;
+import com.youssef.ecommerce.exception.EmptyCartException;
+import com.youssef.ecommerce.exception.InsufficientStockException;
+import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import com.youssef.ecommerce.product.Product;
 import com.youssef.ecommerce.product.ProductRepository;
 import com.youssef.ecommerce.user.User;
@@ -33,23 +36,20 @@ public class OrderService {
 
     @Transactional
     public Order checkout(Long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-
-        if (user == null) {
-            throw new RuntimeException("User not found");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Cart cart = cartRepository.findByUser(user).orElse(null);
 
         if (cart == null || cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cart is empty");
+            throw new EmptyCartException("Cart is empty");
         }
 
         for (CartItem cartItem : cart.getItems()) {
             Product product = cartItem.getProduct();
 
             if (product.getQuantity() < cartItem.getQuantity()) {
-                throw new RuntimeException("Not enough stock for product: " + product.getName());
+                throw new InsufficientStockException("Not enough stock for product: " + product.getName());
             }
         }
 
@@ -88,15 +88,13 @@ public class OrderService {
     }
 
     public Order getOrderById(Long orderId) {
-        return orderRepository.findById(orderId).orElse(null);
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
     }
 
     public List<Order> getOrdersByUser(Long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-
-        if (user == null) {
-            return List.of();
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return orderRepository.findByUser(user);
     }

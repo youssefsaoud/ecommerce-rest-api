@@ -1,5 +1,6 @@
 package com.youssef.ecommerce.cart;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,35 +21,46 @@ public class CartController {
     }
 
     @GetMapping("/{userId}")
-    public Cart getUserCart(@PathVariable Long userId) {
-        return cartService.getUserCart(userId);
+    public CartResponse getUserCart(@PathVariable Long userId) {
+        return toResponse(cartService.getUserCart(userId));
     }
 
     @PostMapping("/{userId}/items")
-    public Cart addProductToCart(@PathVariable Long userId, @RequestBody AddCartItemRequest request) {
-        return cartService.addProductToCart(userId, request.productId(), request.quantity());
+    public CartResponse addProductToCart(@PathVariable Long userId, @Valid @RequestBody AddCartItemRequest request) {
+        return toResponse(cartService.addProductToCart(userId, request.productId(), request.quantity()));
     }
 
     @PutMapping("/{userId}/items/{cartItemId}")
-    public Cart updateCartItemQuantity(@PathVariable Long userId,
-                                       @PathVariable Long cartItemId,
-                                       @RequestBody UpdateCartItemRequest request) {
-        return cartService.updateCartItemQuantity(userId, cartItemId, request.quantity());
+    public CartResponse updateCartItemQuantity(@PathVariable Long userId,
+                                               @PathVariable Long cartItemId,
+                                               @Valid @RequestBody UpdateCartItemRequest request) {
+        return toResponse(cartService.updateCartItemQuantity(userId, cartItemId, request.quantity()));
     }
 
     @DeleteMapping("/{userId}/items/{cartItemId}")
-    public Cart removeItemFromCart(@PathVariable Long userId, @PathVariable Long cartItemId) {
-        return cartService.removeItemFromCart(userId, cartItemId);
+    public CartResponse removeItemFromCart(@PathVariable Long userId, @PathVariable Long cartItemId) {
+        return toResponse(cartService.removeItemFromCart(userId, cartItemId));
     }
 
     @DeleteMapping("/{userId}/items")
-    public Cart clearCart(@PathVariable Long userId) {
-        return cartService.clearCart(userId);
+    public CartResponse clearCart(@PathVariable Long userId) {
+        return toResponse(cartService.clearCart(userId));
     }
 
-    public record AddCartItemRequest(Long productId, Integer quantity) {
-    }
-
-    public record UpdateCartItemRequest(Integer quantity) {
+    private CartResponse toResponse(Cart cart) {
+        return new CartResponse(
+                cart.getId(),
+                cart.getUser().getId(),
+                cart.getItems()
+                        .stream()
+                        .map(item -> new CartItemResponse(
+                                item.getId(),
+                                item.getProduct().getId(),
+                                item.getProduct().getName(),
+                                item.getProduct().getPrice(),
+                                item.getQuantity()
+                        ))
+                        .toList()
+        );
     }
 }

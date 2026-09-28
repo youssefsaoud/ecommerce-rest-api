@@ -1,5 +1,6 @@
 package com.youssef.ecommerce.category;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +23,7 @@ public class CategoryController {
     }
 
     @PostMapping
-    public Category createCategory(@RequestBody Category category) {
+    public Category createCategory(@Valid @RequestBody CategoryRequest category) {
         return categoryService.createCategory(category);
     }
 
@@ -37,7 +38,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    public Category updateCategory(@PathVariable Long id, @RequestBody Category category) {
+    public Category updateCategory(@PathVariable Long id, @Valid @RequestBody CategoryRequest category) {
         return categoryService.updateCategory(id, category);
     }
 

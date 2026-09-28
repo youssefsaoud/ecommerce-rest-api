@@ -1,5 +1,6 @@
 package com.youssef.ecommerce.product;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,27 +23,50 @@ public class ProductController {
     }
 
     @PostMapping
-    public Product createProduct(@RequestBody Product product) {
-        return productService.createProduct(product);
+    public ProductResponse createProduct(@Valid @RequestBody ProductRequest product) {
+        return toResponse(productService.createProduct(product));
     }
 
     @GetMapping
-    public List<Product> getAllProducts() {
-        return productService.getAllProducts();
+    public List<ProductResponse> getAllProducts() {
+        return productService.getAllProducts()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @GetMapping("/{id}")
-    public Product getProductById(@PathVariable Long id) {
-        return productService.getProductById(id);
+    public ProductResponse getProductById(@PathVariable Long id) {
+        return toResponse(productService.getProductById(id));
     }
 
     @PutMapping("/{id}")
-    public Product updateProduct(@PathVariable Long id, @RequestBody Product product) {
-        return productService.updateProduct(id, product);
+    public ProductResponse updateProduct(@PathVariable Long id, @Valid @RequestBody ProductRequest product) {
+        return toResponse(productService.updateProduct(id, product));
     }
 
     @DeleteMapping("/{id}")
     public void deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
+    }
+
+    private ProductResponse toResponse(Product product) {
+        Long categoryId = null;
+        String categoryName = null;
+
+        if (product.getCategory() != null) {
+            categoryId = product.getCategory().getId();
+            categoryName = product.getCategory().getName();
+        }
+
+        return new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getQuantity(),
+                categoryId,
+                categoryName
+        );
     }
 }

@@ -1,5 +1,6 @@
 package com.youssef.ecommerce.user;
 
+import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,7 +14,13 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    public User createUser(User user) {
+    public User createUser(UserRequest request) {
+        User user = new User();
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setEmail(request.email());
+        user.setPassword(request.password());
+
         return userRepository.save(user);
     }
 
@@ -22,25 +29,26 @@ public class UserService {
     }
 
     public User getUserById(Long id) {
-        return userRepository.findById(id).orElse(null);
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-    public User updateUser(Long id, User user) {
-        User existingUser = userRepository.findById(id).orElse(null);
+    public User updateUser(Long id, UserRequest user) {
+        User existingUser = getUserById(id);
 
-        if (existingUser == null) {
-            return null;
-        }
-
-        existingUser.setFirstName(user.getFirstName());
-        existingUser.setLastName(user.getLastName());
-        existingUser.setEmail(user.getEmail());
-        existingUser.setPassword(user.getPassword());
+        existingUser.setFirstName(user.firstName());
+        existingUser.setLastName(user.lastName());
+        existingUser.setEmail(user.email());
+        existingUser.setPassword(user.password());
 
         return userRepository.save(existingUser);
     }
 
     public void deleteUser(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
         userRepository.deleteById(id);
     }
 }
