@@ -1,6 +1,7 @@
 package com.youssef.ecommerce.cart;
 
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,31 +21,31 @@ public class CartController {
         this.cartService = cartService;
     }
 
-    @GetMapping("/{userId}")
-    public CartResponse getUserCart(@PathVariable Long userId) {
-        return toResponse(cartService.getUserCart(userId));
+    @GetMapping
+    public CartResponse getUserCart(Authentication authentication) {
+        return toResponse(cartService.getUserCartByEmail(authentication.getName()));
     }
 
-    @PostMapping("/{userId}/items")
-    public CartResponse addProductToCart(@PathVariable Long userId, @Valid @RequestBody AddCartItemRequest request) {
-        return toResponse(cartService.addProductToCart(userId, request.productId(), request.quantity()));
+    @PostMapping("/items")
+    public CartResponse addProductToCart(Authentication authentication, @Valid @RequestBody AddCartItemRequest request) {
+        return toResponse(cartService.addProductToCartByEmail(authentication.getName(), request.productId(), request.quantity()));
     }
 
-    @PutMapping("/{userId}/items/{cartItemId}")
-    public CartResponse updateCartItemQuantity(@PathVariable Long userId,
+    @PutMapping("/items/{cartItemId}")
+    public CartResponse updateCartItemQuantity(Authentication authentication,
                                                @PathVariable Long cartItemId,
                                                @Valid @RequestBody UpdateCartItemRequest request) {
-        return toResponse(cartService.updateCartItemQuantity(userId, cartItemId, request.quantity()));
+        return toResponse(cartService.updateCartItemQuantityByEmail(authentication.getName(), cartItemId, request.quantity()));
     }
 
-    @DeleteMapping("/{userId}/items/{cartItemId}")
-    public CartResponse removeItemFromCart(@PathVariable Long userId, @PathVariable Long cartItemId) {
-        return toResponse(cartService.removeItemFromCart(userId, cartItemId));
+    @DeleteMapping("/items/{cartItemId}")
+    public CartResponse removeItemFromCart(Authentication authentication, @PathVariable Long cartItemId) {
+        return toResponse(cartService.removeItemFromCartByEmail(authentication.getName(), cartItemId));
     }
 
-    @DeleteMapping("/{userId}/items")
-    public CartResponse clearCart(@PathVariable Long userId) {
-        return toResponse(cartService.clearCart(userId));
+    @DeleteMapping("/items")
+    public CartResponse clearCart(Authentication authentication) {
+        return toResponse(cartService.clearCartByEmail(authentication.getName()));
     }
 
     private CartResponse toResponse(Cart cart) {

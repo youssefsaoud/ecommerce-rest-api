@@ -1,6 +1,7 @@
 package com.youssef.ecommerce.user;
 
 import com.youssef.ecommerce.exception.ResourceNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -9,9 +10,11 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User createUser(UserRequest request) {
@@ -19,7 +22,7 @@ public class UserService {
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setEmail(request.email());
-        user.setPassword(request.password());
+        user.setPassword(passwordEncoder.encode(request.password()));
 
         return userRepository.save(user);
     }
@@ -39,7 +42,7 @@ public class UserService {
         existingUser.setFirstName(user.firstName());
         existingUser.setLastName(user.lastName());
         existingUser.setEmail(user.email());
-        existingUser.setPassword(user.password());
+        existingUser.setPassword(passwordEncoder.encode(user.password()));
 
         return userRepository.save(existingUser);
     }

@@ -4,6 +4,7 @@ import com.youssef.ecommerce.cart.Cart;
 import com.youssef.ecommerce.cart.CartItem;
 import com.youssef.ecommerce.cart.CartRepository;
 import com.youssef.ecommerce.exception.EmptyCartException;
+import com.youssef.ecommerce.exception.ForbiddenOperationException;
 import com.youssef.ecommerce.exception.InsufficientStockException;
 import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import com.youssef.ecommerce.product.Product;
@@ -87,9 +88,26 @@ public class OrderService {
         return savedOrder;
     }
 
+    @Transactional
+    public Order checkoutByEmail(String email) {
+        User user = getUserByEmail(email);
+        return checkout(user.getId());
+    }
+
     public Order getOrderById(Long orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+    }
+
+    public Order getOrderByIdForUser(String email, Long orderId) {
+        User user = getUserByEmail(email);
+        Order order = getOrderById(orderId);
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new ForbiddenOperationException("Access denied");
+        }
+
+        return order;
     }
 
     public List<Order> getOrdersByUser(Long userId) {
@@ -97,5 +115,15 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return orderRepository.findByUser(user);
+    }
+
+    public List<Order> getOrdersByUserEmail(String email) {
+        User user = getUserByEmail(email);
+        return orderRepository.findByUser(user);
+    }
+
+    private User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }

@@ -3,6 +3,7 @@ package com.youssef.ecommerce.order;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,19 +19,19 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @PostMapping("/checkout/{userId}")
-    public OrderResponse checkout(@PathVariable Long userId) {
-        return toResponse(orderService.checkout(userId));
+    @PostMapping("/checkout")
+    public OrderResponse checkout(Authentication authentication) {
+        return toResponse(orderService.checkoutByEmail(authentication.getName()));
     }
 
     @GetMapping("/{orderId}")
-    public OrderResponse getOrderById(@PathVariable Long orderId) {
-        return toResponse(orderService.getOrderById(orderId));
+    public OrderResponse getOrderById(Authentication authentication, @PathVariable Long orderId) {
+        return toResponse(orderService.getOrderByIdForUser(authentication.getName(), orderId));
     }
 
-    @GetMapping("/user/{userId}")
-    public List<OrderResponse> getOrdersByUser(@PathVariable Long userId) {
-        return orderService.getOrdersByUser(userId)
+    @GetMapping("/my-orders")
+    public List<OrderResponse> getOrdersByUser(Authentication authentication) {
+        return orderService.getOrdersByUserEmail(authentication.getName())
                 .stream()
                 .map(this::toResponse)
                 .toList();

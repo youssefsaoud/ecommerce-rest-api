@@ -44,6 +44,36 @@ public class CartService {
     }
 
     @Transactional
+    public Cart getUserCartByEmail(String email) {
+        User user = getUserByEmail(email);
+        return getUserCart(user.getId());
+    }
+
+    @Transactional
+    public Cart addProductToCartByEmail(String email, Long productId, Integer quantity) {
+        User user = getUserByEmail(email);
+        return addProductToCart(user.getId(), productId, quantity);
+    }
+
+    @Transactional
+    public Cart updateCartItemQuantityByEmail(String email, Long cartItemId, Integer quantity) {
+        User user = getUserByEmail(email);
+        return updateCartItemQuantity(user.getId(), cartItemId, quantity);
+    }
+
+    @Transactional
+    public Cart removeItemFromCartByEmail(String email, Long cartItemId) {
+        User user = getUserByEmail(email);
+        return removeItemFromCart(user.getId(), cartItemId);
+    }
+
+    @Transactional
+    public Cart clearCartByEmail(String email) {
+        User user = getUserByEmail(email);
+        return clearCart(user.getId());
+    }
+
+    @Transactional
     public Cart addProductToCart(Long userId, Long productId, Integer quantity) {
         Cart cart = getUserCart(userId);
         Product product = productRepository.findById(productId)
@@ -104,5 +134,10 @@ public class CartService {
         cart.getItems().clear();
 
         return cartRepository.save(cart);
+    }
+
+    private User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }
