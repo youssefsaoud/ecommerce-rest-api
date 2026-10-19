@@ -6,16 +6,22 @@ import com.youssef.ecommerce.cart.CartRepository;
 import com.youssef.ecommerce.exception.EmptyCartException;
 import com.youssef.ecommerce.exception.ForbiddenOperationException;
 import com.youssef.ecommerce.exception.InsufficientStockException;
+import com.youssef.ecommerce.exception.InvalidCartOperationException;
 import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import com.youssef.ecommerce.product.Product;
 import com.youssef.ecommerce.product.ProductRepository;
 import com.youssef.ecommerce.user.User;
 import com.youssef.ecommerce.user.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 public class OrderService {
@@ -24,15 +30,18 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final EntityManager entityManager;
 
     public OrderService(OrderRepository orderRepository,
                         CartRepository cartRepository,
                         UserRepository userRepository,
-                        ProductRepository productRepository) {
+                        ProductRepository productRepository,
+                        EntityManager entityManager) {
         this.orderRepository = orderRepository;
         this.cartRepository = cartRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
+        this.entityManager = entityManager;
     }
 
     @Transactional
@@ -40,16 +49,31 @@ public class OrderService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Cart cart = cartRepository.findByUser(user).orElse(null);
+        Cart cart = cartRepository.findByUserForUpdate(user).orElse(null);
 
         if (cart == null || cart.getItems().isEmpty()) {
             throw new EmptyCartException("Cart is empty");
         }
 
-        for (CartItem cartItem : cart.getItems()) {
-            Product product = cartItem.getProduct();
+        // The cart lock serializes repeated checkout requests for the same cart.
+        // Lock distinct products in ID order across every checkout to reduce deadlocks.
+        List<Product> products = cart.getItems().stream().map(CartItem::getProduct)
+                .distinct().sorted(Comparator.comparing(Product::getId)).toList();
+        for (Product product : products) {
+            // Products may already be managed after loading the cart. Refresh under the
+            // lock so a waiting transaction sees the preceding buyer's committed stock.
+            entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+        }
 
-            if (product.getQuantity() < cartItem.getQuantity()) {
+        Map<Long, Long> requestedQuantities = new TreeMap<>();
+        for (CartItem item : cart.getItems()) {
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new InvalidCartOperationException("Cart quantity must be positive");
+            }
+            requestedQuantities.merge(item.getProduct().getId(), item.getQuantity().longValue(), Long::sum);
+        }
+        for (Product product : products) {
+            if (product.getQuantity() < requestedQuantities.get(product.getId())) {
                 throw new InsufficientStockException("Not enough stock for product: " + product.getName());
             }
         }

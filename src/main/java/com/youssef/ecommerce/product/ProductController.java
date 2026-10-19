@@ -10,7 +10,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.util.Set;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/products")
@@ -28,11 +34,26 @@ public class ProductController {
     }
 
     @GetMapping
-    public List<ProductResponse> getAllProducts() {
-        return productService.getAllProducts()
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public PagedModel<ProductResponse> getAllProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id,asc") String sort) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new IllegalArgumentException("page must be >= 0 and size must be between 1 and 100");
+        }
+        String[] parts = sort.split(",", -1);
+        Set<String> allowed = Set.of("id", "name", "price", "quantity");
+        if (parts.length != 2 || !allowed.contains(parts[0])
+                || !(parts[1].equalsIgnoreCase("asc") || parts[1].equalsIgnoreCase("desc"))) {
+            throw new IllegalArgumentException("sort must be field,asc or field,desc; fields: id, name, price, quantity");
+        }
+        Sort ordering = Sort.by(Sort.Direction.fromString(parts[1]), parts[0]);
+        if (!parts[0].equals("id")) {
+            ordering = ordering.and(Sort.by("id"));
+        }
+        Pageable pageable = PageRequest.of(page, size, ordering);
+        Page<ProductResponse> products = productService.getAllProducts(pageable).map(this::toResponse);
+        return new PagedModel<>(products);
     }
 
     @GetMapping("/{id}")

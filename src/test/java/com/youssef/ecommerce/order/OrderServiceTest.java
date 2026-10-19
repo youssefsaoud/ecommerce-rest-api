@@ -41,6 +41,9 @@ class OrderServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private jakarta.persistence.EntityManager entityManager;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -51,7 +54,7 @@ class OrderServiceTest {
         Cart cart = cartWithItem(user, product, 2);
 
         when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(cartRepository.findByUser(user)).thenReturn(Optional.of(cart));
+        when(cartRepository.findByUserForUpdate(user)).thenReturn(Optional.of(cart));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Order order = orderService.checkout(3L);
@@ -73,7 +76,7 @@ class OrderServiceTest {
         Cart cart = cartWithItem(user, product, 2);
 
         when(userRepository.findById(3L)).thenReturn(Optional.of(user));
-        when(cartRepository.findByUser(user)).thenReturn(Optional.of(cart));
+        when(cartRepository.findByUserForUpdate(user)).thenReturn(Optional.of(cart));
 
         assertThatThrownBy(() -> orderService.checkout(3L))
                 .isInstanceOf(InsufficientStockException.class);
@@ -97,6 +100,49 @@ class OrderServiceTest {
 
         assertThatThrownBy(() -> orderService.getOrderByIdForUser("user3@example.com", 99L))
                 .isInstanceOf(ForbiddenOperationException.class);
+    }
+
+    @Test
+    void checkoutLocksProductsInIdOrderBeforeDeductingStock() {
+        User user = user(3L, "user3@example.com");
+        Product higherId = product(7L, "Mouse", "25.50", 10);
+        Product lowerId = product(2L, "Cable", "10.00", 5);
+        Cart cart = cartWithItem(user, higherId, 2);
+        CartItem second = new CartItem();
+        second.setCart(cart);
+        second.setProduct(lowerId);
+        second.setQuantity(1);
+        cart.getItems().add(second);
+        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUserForUpdate(user)).thenReturn(Optional.of(cart));
+        when(orderRepository.save(any(Order.class))).thenAnswer(call -> call.getArgument(0));
+
+        Order order = orderService.checkout(3L);
+
+        var sequence = org.mockito.Mockito.inOrder(entityManager, productRepository);
+        sequence.verify(entityManager).refresh(lowerId, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        sequence.verify(entityManager).refresh(higherId, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        sequence.verify(productRepository).save(higherId);
+        sequence.verify(productRepository).save(lowerId);
+        assertThat(order.getTotalAmount()).isEqualByComparingTo("61.00");
+    }
+
+    @Test
+    void duplicateCartLinesCannotBypassStockValidation() {
+        User user = user(3L, "user3@example.com");
+        Product product = product(7L, "Mouse", "25.50", 1);
+        Cart cart = cartWithItem(user, product, 1);
+        CartItem duplicate = new CartItem();
+        duplicate.setCart(cart);
+        duplicate.setProduct(product);
+        duplicate.setQuantity(1);
+        cart.getItems().add(duplicate);
+        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUserForUpdate(user)).thenReturn(Optional.of(cart));
+
+        assertThatThrownBy(() -> orderService.checkout(3L)).isInstanceOf(InsufficientStockException.class);
+        verify(orderRepository, never()).save(any(Order.class));
+        assertThat(product.getQuantity()).isEqualTo(1);
     }
 
     private User user(Long id, String email) {

@@ -5,17 +5,23 @@ import com.youssef.ecommerce.category.CategoryRepository;
 import com.youssef.ecommerce.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 @Service
 public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final EntityManager entityManager;
 
-    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository) {
+    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository, EntityManager entityManager) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.entityManager = entityManager;
     }
 
     public Product createProduct(ProductRequest request) {
@@ -25,8 +31,8 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public Page<Product> getAllProducts(Pageable pageable) {
+        return productRepository.findAll(pageable);
     }
 
     public Product getProductById(Long id) {
@@ -34,8 +40,10 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
     }
 
+    @Transactional
     public Product updateProduct(Long id, ProductRequest product) {
         Product existingProduct = getProductById(id);
+        entityManager.refresh(existingProduct, LockModeType.PESSIMISTIC_WRITE);
         updateProductFields(existingProduct, product);
 
         return productRepository.save(existingProduct);
